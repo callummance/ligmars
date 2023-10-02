@@ -1,0 +1,3 @@
+[workspace]
+
+members = ["ligmars", "liblgmp-sys"]

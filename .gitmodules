@@ -1,0 +1,3 @@
+[submodule "liblgmp-sys/deps/LGMP"]
+	path = liblgmp-sys/deps/LGMP
+	url = https://github.com/gnif/LGMP
