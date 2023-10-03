@@ -5,8 +5,16 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["host", "client"]
+host = []
+client = []
+internal_shm_impl = ["dep:memmap2"]
+
 [dependencies]
 liblgmp-sys = { path = "../liblgmp-sys", version = "^0.1.0" }
 thiserror = { version = "^1.0.48" }
 num_enum = { version = "^0.7.0" }
-memmap2 = { version = "^0.8.0" }
+memmap2 = { version = "^0.8.0", optional = true }
+shared_memory = "0.12.4"
+cfg-if = "1.0.0"

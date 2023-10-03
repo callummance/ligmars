@@ -1,19 +1,20 @@
+//!
 use std::mem::MaybeUninit;
 
 use crate::{
     error::{LGMPResult, Status},
-    shm_file::ShmFile,
+    shm_file::ShmFileHandle,
 };
 
 pub struct LGMPClient {
-    source: Option<ShmFile>,
+    source: Option<Box<dyn ShmFileHandle>>,
     inner: liblgmp_sys::PLGMPClient,
 }
 
 impl LGMPClient {
-    pub fn init(file: ShmFile) -> LGMPResult<LGMPClient> {
-        let ptr = file.get_ptr() as *mut std::ffi::c_void;
-        let size: usize = file.file_size.try_into()?;
+    pub fn init(mut file: Box<dyn ShmFileHandle>) -> LGMPResult<LGMPClient> {
+        let ptr = file.get_mut_ptr() as *mut std::ffi::c_void;
+        let size: usize = file.get_size();
 
         let mut client: LGMPClient = unsafe { Self::init_from_ptr(ptr, size)? };
 

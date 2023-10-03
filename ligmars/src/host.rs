@@ -2,7 +2,7 @@ use std::mem::MaybeUninit;
 
 use crate::{
     error::{LGMPResult, Status},
-    shm_file::ShmFile,
+    shm_file::ShmFileHandle,
 };
 
 pub struct LGMPQueueConfig {
@@ -22,15 +22,15 @@ impl From<LGMPQueueConfig> for liblgmp_sys::LGMPQueueConfig {
 }
 
 pub struct LGMPHost {
-    source: Option<ShmFile>,
+    source: Option<Box<dyn ShmFileHandle>>,
     inner: liblgmp_sys::PLGMPHost,
     allocations: Vec<LGMPMemoryAllocation>,
 }
 
 impl LGMPHost {
-    pub fn init(file: ShmFile, udata: Vec<u8>) -> LGMPResult<LGMPHost> {
-        let ptr = file.get_ptr() as *mut std::ffi::c_void;
-        let size: usize = file.file_size.try_into()?;
+    pub fn init(mut file: Box<dyn ShmFileHandle>, udata: Vec<u8>) -> LGMPResult<LGMPHost> {
+        let ptr = file.get_mut_ptr() as *mut std::ffi::c_void;
+        let size: usize = file.get_size();
 
         let mut host: LGMPHost = unsafe { Self::init_from_ptr(ptr, size, udata)? };
 
@@ -215,5 +215,11 @@ impl LGMPMemoryAllocation {
     pub fn mem_ptr(&mut self) -> *mut std::ffi::c_void {
         let mem = self.inner;
         unsafe { liblgmp_sys::lgmpHostMemPtr(mem) }
+    }
+}
+
+impl Drop for LGMPMemoryAllocation {
+    fn drop(&mut self) {
+        unsafe { liblgmp_sys::lgmpHostMemFree(&mut self.inner) }
     }
 }
