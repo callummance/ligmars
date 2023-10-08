@@ -1,3 +1,4 @@
+//! Types used to represent different LGMP results
 use std::mem::MaybeUninit;
 
 use num_enum::{FromPrimitive, IntoPrimitive};

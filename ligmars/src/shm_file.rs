@@ -1,3 +1,7 @@
+//!Trait used for access to a memory-mapped SHM file, as well as implementations.
+
+/// Trait for a handle to shared memory of some kind, through which
+/// interprocess communication can take place.
 pub trait ShmFileHandle {
     fn get_mut_ptr(&mut self) -> *mut std::ffi::c_void;
     fn get_size(&self) -> usize;
@@ -53,18 +57,18 @@ cfg_if::cfg_if! {
                 usize::try_from(self.file_size).expect("File size exceeded maxint")
             }
         }
+    }
 
-    } else {
-        pub use shared_memory;
+}
 
-        impl ShmFileHandle for shared_memory::Shmem {
-            fn get_mut_ptr(&mut self) -> *mut std::ffi::c_void {
-                self.as_ptr() as *mut std::ffi::c_void
-            }
+pub use shared_memory;
 
-            fn get_size(&self) -> usize {
-                self.len()
-            }
-        }
+impl ShmFileHandle for shared_memory::Shmem {
+    fn get_mut_ptr(&mut self) -> *mut std::ffi::c_void {
+        self.as_ptr() as *mut std::ffi::c_void
+    }
+
+    fn get_size(&self) -> usize {
+        self.len()
     }
 }
