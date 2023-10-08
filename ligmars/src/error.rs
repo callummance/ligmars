@@ -4,6 +4,8 @@ use std::mem::MaybeUninit;
 use num_enum::{FromPrimitive, IntoPrimitive};
 use thiserror::Error;
 
+#[allow(missing_docs)]
+/// Status returned by the LGMP C library
 #[derive(Debug, Error, Eq, PartialEq, IntoPrimitive, FromPrimitive)]
 #[repr(u32)]
 pub enum Status {
@@ -69,6 +71,8 @@ impl Status {
     }
 }
 
+#[allow(missing_docs)]
+/// Error type returned by wrapper functions
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Internal library returned status {0}")]
@@ -79,6 +83,7 @@ pub enum Error {
     ConversionError(#[from] std::num::TryFromIntError),
 }
 
+/// Alias for result type returned by wrapper functions
 pub type LGMPResult<T> = Result<T, Error>;
 
 impl From<Status> for LGMPResult<()> {

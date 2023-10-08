@@ -1,4 +1,5 @@
-//! Structs and functions for connecting to an LGMP shared memory connction as a client. Requres the [client] feature enabled to use.
+//! Structs and functions for connecting to an LGMP shared memory connction as a client.
+//! Requres the [client] feature enabled to use.
 use std::mem::MaybeUninit;
 
 use crate::{
