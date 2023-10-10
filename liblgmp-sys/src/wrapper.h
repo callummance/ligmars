@@ -2,3 +2,4 @@
 #include "../deps/LGMP/lgmp/include/lgmp/host.h"
 #include "../deps/LGMP/lgmp/include/lgmp/lgmp.h"
 #include "../deps/LGMP/lgmp/include/lgmp/status.h"
+#include "../deps/LGMP/lgmp/src/lgmp.h"

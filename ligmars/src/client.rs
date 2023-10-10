@@ -8,21 +8,21 @@ use crate::{
 };
 
 /// Handle to the client side of an SHM communication file
-pub struct LGMPClient {
+pub struct Client {
     source: Option<Box<dyn ShmFileHandle>>,
     inner: liblgmp_sys::PLGMPClient,
 }
 
-impl LGMPClient {
+impl Client {
     /// Initialises a handle to the client side of a LGMP connection
     /// given a handle to a memory mapped SHM file.
     /// The SHM file and memory mapped region must be large enough to
     /// handle all communications, as it cannot be resized during use.
-    pub fn init(mut file: Box<dyn ShmFileHandle>) -> LGMPResult<LGMPClient> {
+    pub fn init(mut file: Box<dyn ShmFileHandle>) -> LGMPResult<Client> {
         let ptr = file.get_mut_ptr() as *mut std::ffi::c_void;
         let size: usize = file.get_size();
 
-        let mut client: LGMPClient = unsafe { Self::init_from_ptr(ptr, size)? };
+        let mut client: Client = unsafe { Self::init_from_ptr(ptr, size)? };
 
         client.source = Some(file);
         Ok(client)
@@ -37,13 +37,13 @@ impl LGMPClient {
     /// The pointer provided for mem must point into a valid
     /// writeable memory location which can be used for communication.
     /// There must also be at least `size` bytes of usable memory available.
-    unsafe fn init_from_ptr(mem: *mut std::ffi::c_void, size: usize) -> LGMPResult<LGMPClient> {
+    unsafe fn init_from_ptr(mem: *mut std::ffi::c_void, size: usize) -> LGMPResult<Client> {
         let mut res_ptr: MaybeUninit<liblgmp_sys::PLGMPClient> = MaybeUninit::zeroed();
         let res: u32 = unsafe { liblgmp_sys::lgmpClientInit(mem, size, res_ptr.as_mut_ptr()) };
 
         Status::from(res)
             .ok_and_init_if_success(res_ptr)
-            .map(|inner| LGMPClient {
+            .map(|inner| Client {
                 inner,
                 source: None,
             })
@@ -81,7 +81,8 @@ impl LGMPClient {
                     udata_slice = std::slice::from_raw_parts(udata, udata_size);
                 }
                 let mut udata_vec = Vec::new();
-                udata_vec.clone_from_slice(udata_slice);
+                udata_vec.resize(udata_slice.len(), 0);
+                udata_vec.copy_from_slice(udata_slice);
                 (udata_vec, client_id)
             })
     }
@@ -113,7 +114,7 @@ impl LGMPClient {
     }
 }
 
-impl Drop for LGMPClient {
+impl Drop for Client {
     fn drop(&mut self) {
         //Call free on internal struct
         unsafe {
@@ -185,7 +186,8 @@ impl ClientQueueHandle {
                 let len = usize::try_from(msg.size)?;
                 let data = unsafe { core::slice::from_raw_parts(msg.mem as *mut u8, len) };
                 let mut mem = Vec::new();
-                mem.clone_from_slice(data);
+                mem.resize(data.len(), 0);
+                mem.copy_from_slice(data);
 
                 Ok(Message {
                     udata: msg.udata,
@@ -244,11 +246,12 @@ impl ClientQueueHandle {
 
 impl Drop for ClientQueueHandle {
     fn drop(&mut self) {
-        let replacement = ClientQueueHandle {
-            inner: std::ptr::null_mut::<liblgmp_sys::LGMPClientQueue>(),
-        };
-        let to_drop = std::mem::replace(self, replacement);
-        unsafe { to_drop.force_drop() }
+        if let Err(e) = self.unsubscribe() {
+            eprintln!(
+                "Failed to unsubscribe from client queue due to error {:?}, dropping anyway...",
+                e
+            )
+        }
     }
 }
 

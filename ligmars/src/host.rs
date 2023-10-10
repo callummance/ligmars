@@ -1,6 +1,9 @@
 //! Structs and functions for connecting to an LGMP shared memory connction as a host.
 //! Requres the [host] feature enabled to use.
-use std::mem::MaybeUninit;
+use std::{
+    mem::MaybeUninit,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     error::{LGMPResult, Status},
@@ -8,22 +11,22 @@ use crate::{
 };
 
 /// Handle to a SHM communication file as the host.
-pub struct LGMPHost {
+pub struct Host {
     source: Option<Box<dyn ShmFileHandle>>,
     inner: liblgmp_sys::PLGMPHost,
-    allocations: Vec<LGMPMemoryAllocation>,
+    allocations: Vec<Arc<Mutex<LGMPMemoryAllocation>>>,
 }
 
-impl LGMPHost {
+impl Host {
     /// Initialises a handle to the host side of a LGMP connection
     /// given a handle to a memory mapped SHM file.
     /// The SHM file and memory mapped region must be large enough to
     /// handle all communications, as it cannot be resized during use.
-    pub fn init(mut file: Box<dyn ShmFileHandle>, udata: Vec<u8>) -> LGMPResult<LGMPHost> {
+    pub fn init(mut file: Box<dyn ShmFileHandle>, udata: &[u8]) -> LGMPResult<Host> {
         let ptr = file.get_mut_ptr() as *mut std::ffi::c_void;
         let size: usize = file.get_size();
 
-        let mut host: LGMPHost = unsafe { Self::init_from_ptr(ptr, size, udata)? };
+        let mut host: Host = unsafe { Self::init_from_ptr(ptr, size, udata)? };
 
         host.source = Some(file);
         Ok(host)
@@ -41,20 +44,26 @@ impl LGMPHost {
     pub unsafe fn init_from_ptr(
         mem: *mut std::ffi::c_void,
         size: usize,
-        mut udata: Vec<u8>,
-    ) -> LGMPResult<LGMPHost> {
+        udata: &[u8],
+    ) -> LGMPResult<Host> {
         let mut res_ptr: MaybeUninit<liblgmp_sys::PLGMPHost> = MaybeUninit::zeroed();
         let size = u32::try_from(size)?;
-        let udata_ptr = udata.as_mut_ptr();
+        let udata_ptr = udata.as_ptr();
         let udata_size = u32::try_from(udata.len())?;
         let res: u32 = unsafe {
-            liblgmp_sys::lgmpHostInit(mem, size, res_ptr.as_mut_ptr(), udata_size, udata_ptr)
+            liblgmp_sys::lgmpHostInit(
+                mem,
+                size,
+                res_ptr.as_mut_ptr(),
+                udata_size,
+                udata_ptr as *mut u8,
+            )
         };
-        let allocations: Vec<LGMPMemoryAllocation> = Vec::new();
+        let allocations: Vec<Arc<Mutex<LGMPMemoryAllocation>>> = Vec::new();
 
         Status::from(res)
             .ok_and_init_if_success(res_ptr)
-            .map(|inner| LGMPHost {
+            .map(|inner| Host {
                 inner,
                 source: None,
                 allocations,
@@ -112,7 +121,7 @@ impl LGMPHost {
     /// Note that allocations are permanent; whilst the struct pointing to memory
     /// allocations will be freed upon being dropped, the memory within the shared
     /// memory location will never be recovered until the host is closed.
-    pub fn mem_alloc(&mut self, size: u32) -> LGMPResult<&LGMPMemoryAllocation> {
+    pub fn mem_alloc(&mut self, size: u32) -> LGMPResult<Arc<Mutex<LGMPMemoryAllocation>>> {
         self.mem_alloc_aligned(size, 4)
     }
 
@@ -128,7 +137,7 @@ impl LGMPHost {
         &mut self,
         size: u32,
         alignment: u32,
-    ) -> LGMPResult<&LGMPMemoryAllocation> {
+    ) -> LGMPResult<Arc<Mutex<LGMPMemoryAllocation>>> {
         let host = self.inner;
         let mut allocation: MaybeUninit<liblgmp_sys::PLGMPMemory> = MaybeUninit::zeroed();
 
@@ -139,17 +148,28 @@ impl LGMPHost {
         Status::from(res)
             .ok_and_init_if_success(allocation)
             .map(|allocation| {
-                let allocation_struct = LGMPMemoryAllocation { inner: allocation };
+                let allocation_struct = Arc::new(Mutex::new(LGMPMemoryAllocation {
+                    inner: Some(allocation),
+                }));
                 self.allocations.push(allocation_struct);
                 self.allocations
                     .last()
                     .expect("Somehow allocations vector was empty after pushing something to it")
+                    .clone()
             })
     }
 }
 
-impl Drop for LGMPHost {
+impl Drop for Host {
     fn drop(&mut self) {
+        //Consume any allocations
+        for alloc_ptr in self.allocations.iter() {
+            if let Ok(mut allocation) = alloc_ptr.lock() {
+                allocation.consume();
+            } else {
+                eprintln!("Failed to free allocation struct due to lock poisoning. Memory may have leaked.")
+            }
+        }
         //Call free in C library
         unsafe { liblgmp_sys::lgmpHostFree(&mut self.inner) }
     }
@@ -207,13 +227,13 @@ impl LGMPHostQueue {
     ///
     /// Whilst this 32-bit udata field can contain any value, it is probably most useful
     /// for use as eg. a sequential message ID.
-    pub fn post_shared_mem(
+    pub fn post_shared_mem<P: std::ops::Deref<Target = LGMPMemoryAllocation>>(
         &mut self,
         udata: u32,
-        payload: &LGMPMemoryAllocation,
+        payload: P,
     ) -> LGMPResult<()> {
         let queue = self.inner;
-        let payload = payload.inner;
+        let payload = payload.deref().inner()?;
 
         let res = unsafe { liblgmp_sys::lgmpHostQueuePost(queue, udata, payload) };
 
@@ -284,19 +304,70 @@ impl LGMPHostQueue {
 /// LGMP memory allocations are permanent, and as such any allocated memory
 /// will never be freed until the host program restarts.
 pub struct LGMPMemoryAllocation {
-    inner: liblgmp_sys::PLGMPMemory,
+    inner: Option<liblgmp_sys::PLGMPMemory>,
 }
 
 impl LGMPMemoryAllocation {
     /// Returns a raw mutable pointer to a chunk of allocated memory.
-    pub fn mem_ptr(&mut self) -> *mut std::ffi::c_void {
-        let mem = self.inner;
-        unsafe { liblgmp_sys::lgmpHostMemPtr(mem) }
+    pub fn mem_ptr(&mut self) -> LGMPResult<*mut std::ffi::c_void> {
+        match self.inner {
+            Some(mem) => Ok(unsafe { liblgmp_sys::lgmpHostMemPtr(mem) }),
+            None => Err(crate::error::Error::HostClosedError),
+        }
+    }
+
+    /// Returns a copy of the internal pointer iff it has not yet been consumed, otherwise
+    /// throws a HostClosedError
+    fn inner(&self) -> LGMPResult<liblgmp_sys::PLGMPMemory> {
+        match self.inner {
+            Some(mem) => Ok(mem),
+            None => Err(crate::error::Error::HostClosedError),
+        }
+    }
+
+    /// Copies a slice of bytes into the allocated memory chunk.
+    pub fn copy_from_bytes(&mut self, data: &[u8]) -> LGMPResult<()> {
+        //Check we have enough space
+        if data.len() > self.len() {
+            Err(crate::error::Error::from(Status::LGMPErrNoSharedMem))?
+        } else {
+            let ptr = self.mem_ptr()?;
+            // This should be safe as we know that data.len bytes should be readable from the
+            // source slice, and we have already check that we have at least the same amount of
+            // space allocated at the destination.
+            unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), ptr as *mut u8, data.len()) };
+            Ok(())
+        }
+    }
+
+    pub fn consume(&mut self) {
+        if let Some(mut allocation) = self.inner {
+            unsafe { liblgmp_sys::lgmpHostMemFree(&mut allocation) }
+        }
+
+        self.inner = None;
+    }
+
+    pub fn len(&self) -> usize {
+        match self.inner {
+            Some(mem) => unsafe { (*mem).size.try_into().unwrap_or(usize::MAX) },
+            None => 0,
+        }
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        match self.inner {
+            Some(_) => self.len() == 0,
+            None => true,
+        }
     }
 }
 
 impl Drop for LGMPMemoryAllocation {
     fn drop(&mut self) {
-        unsafe { liblgmp_sys::lgmpHostMemFree(&mut self.inner) }
+        if let Some(mut mem) = self.inner {
+            unsafe { liblgmp_sys::lgmpHostMemFree(&mut mem) }
+        }
     }
 }

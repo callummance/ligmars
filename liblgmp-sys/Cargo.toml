@@ -1,7 +1,11 @@
 [package]
 name = "liblgmp-sys"
+description = "Raw bindings to the LGMP library by gnif"
 version = "0.1.0"
 edition = "2021"
+license = "GPL-2.0"
+repository = "https://github.com/callummance/ligmars"
+categories = ["external-ffi-bindings", "concurrency"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

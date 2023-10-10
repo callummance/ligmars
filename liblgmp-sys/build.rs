@@ -8,6 +8,7 @@ fn main() {
 fn gen_bindings() {
     let bindings = bindgen::Builder::default()
         .header("src/wrapper.h")
+        .clang_arg("-I./deps/LGMP/lgmp/include")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .generate()
         .expect("Unable to generate bindings");
@@ -24,6 +25,7 @@ fn build() {
         .build_target("lgmp")
         .build();
 
+    println!("cargo:rustc-link-search=native={}/build", dst.display());
     println!("cargo:rustc-link-search=native={}/build", dst.display());
     println!("cargo:rustc-link-lib=static=lgmp");
 

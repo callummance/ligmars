@@ -81,6 +81,8 @@ pub enum Error {
     IOError(#[from] std::io::Error),
     #[error("Failed to convert size to the format expected by internal library")]
     ConversionError(#[from] std::num::TryFromIntError),
+    #[error("Attempted to access memory region allocated by closed host")]
+    HostClosedError,
 }
 
 /// Alias for result type returned by wrapper functions
