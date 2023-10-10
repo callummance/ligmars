@@ -11,6 +11,8 @@ jobs:
         steps:
             - name: Checkout Sources
               uses: actions/checkout@v4
+              with:
+                submodules: recursive
 
             - name: Install rust toolchain
               uses: actions-rs/toolchain@v1
@@ -39,6 +41,8 @@ jobs:
         steps:
             - name: Checkout Sources
               uses: actions/checkout@v4
+              with:
+                submodules: recursive
 
             - name: Install rust toolchain
               uses: actions-rs/toolchain@v1
