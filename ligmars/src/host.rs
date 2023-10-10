@@ -112,11 +112,7 @@ impl Host {
     /// Allocates a block of memory of size `size` bytes within the shared
     /// memory region.
     ///
-    /// This is equivalent to calling
-    /// ```
-    /// self.mem_alloc_aligned(size, 4)
-    ///
-    /// ```
+    /// This is equivalent to calling `self.mem_alloc_aligned(size, 4)`
     ///
     /// Note that allocations are permanent; whilst the struct pointing to memory
     /// allocations will be freed upon being dropped, the memory within the shared

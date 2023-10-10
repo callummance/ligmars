@@ -226,13 +226,14 @@ impl ClientQueueHandle {
     /// This will also represent the serial number of the message most recently processed.
     /// As such, you can check that a message has been processed by comparing the value returned
     /// by the send_data function call to the serial here, for example
-    /// ```
+    /// ```ignore
     /// let msg_serial = chan.send_data(data)?;
     /// if chan.get_serial()? >= msg_serial {
     ///     println!("Message recieved by host");
     /// } else {
     ///     println!("Message not yet recieved by host");
     /// }
+    /// # Ok::<(), ligmars::error::Error>(())
     /// ```
     pub fn get_serial(&mut self) -> LGMPResult<u32> {
         let queue = self.inner;
