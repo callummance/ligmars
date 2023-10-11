@@ -59,17 +59,16 @@ jobs:
               with:
                 version: "17"
 
+            - name: Login to Crates
+              run: cargo login "${{ secrets.CRATES_TOKEN }}"
+
             - name: Publish liblgmp-sys
               shell: bash
               working-directory: ./liblgmp-sys
-              run: cargo publish --token "$CRATES_TOKEN"
-              env:
-                CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+              run: cargo publish 
 
             - name: Publish ligmars
               shell: bash
               working-directory: ./ligmars
-              run: cargo publish --token "$CRATES_TOKEN"
-              env:
-                CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+              run: cargo publish 
               
