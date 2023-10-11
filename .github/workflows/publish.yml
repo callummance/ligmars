@@ -17,6 +17,7 @@ jobs:
             - name: Install rust toolchain
               uses: actions-rs/toolchain@v1
               with:
+                profile: minimal
                 toolchain: stable
                 override: true
 
@@ -64,11 +65,13 @@ jobs:
 
             - name: Publish liblgmp-sys
               shell: bash
+              continue-on-error: true
               working-directory: ./liblgmp-sys
               run: cargo publish 
 
             - name: Publish ligmars
               shell: bash
+              continue-on-error: true
               working-directory: ./ligmars
               run: cargo publish 
               
