@@ -1,7 +1,7 @@
 [package]
 name = "liblgmp-sys"
 description = "Raw bindings to the LGMP library by gnif"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "GPL-2.0"
 repository = "https://github.com/callummance/ligmars"
