@@ -1,5 +1,5 @@
 //! Types used to represent different LGMP results
-use std::mem::MaybeUninit;
+use std::{mem::MaybeUninit, sync::PoisonError};
 
 use num_enum::{FromPrimitive, IntoPrimitive};
 use thiserror::Error;
@@ -83,6 +83,14 @@ pub enum Error {
     ConversionError(#[from] std::num::TryFromIntError),
     #[error("Attempted to access memory region allocated by closed host")]
     HostClosedError,
+    #[error("Lock was poisoned by a panicking thread")]
+    LockPoisonedError,
+}
+
+impl<T> From<PoisonError<T>> for Error {
+    fn from(_err: PoisonError<T>) -> Self {
+        Self::LockPoisonedError
+    }
 }
 
 /// Alias for result type returned by wrapper functions

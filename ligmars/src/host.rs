@@ -1,5 +1,5 @@
 //! Structs and functions for connecting to an LGMP shared memory connction as a host.
-//! Requres the [host] feature enabled to use.
+//! Requres the `host` feature enabled to use.
 use std::{
     mem::MaybeUninit,
     sync::{Arc, Mutex},

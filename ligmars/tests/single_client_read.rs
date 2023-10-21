@@ -54,7 +54,7 @@ fn single_client_read() {
     //Recieve from client
     let c_queue = &mut client_queues[0];
     let msg = c_queue
-        .process()
+        .peek()
         .expect("Failed to retrieve message on client");
     let msg_cstr =
         std::ffi::CStr::from_bytes_until_nul(&msg.mem).expect("Failed to decode message string");
