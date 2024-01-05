@@ -17,6 +17,8 @@ pub struct Client {
     inner: liblgmp_sys::PLGMPClient,
 }
 
+unsafe impl Send for Client {}
+
 impl Client {
     /// Initialises a handle to the client side of a LGMP connection
     /// given a handle to a memory mapped SHM file.

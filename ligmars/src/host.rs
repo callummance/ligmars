@@ -17,6 +17,8 @@ pub struct Host {
     allocations: Vec<Arc<Mutex<LGMPMemoryAllocation>>>,
 }
 
+unsafe impl Send for Host {}
+
 impl Host {
     /// Initialises a handle to the host side of a LGMP connection
     /// given a handle to a memory mapped SHM file.
