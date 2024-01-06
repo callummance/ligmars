@@ -1,7 +1,7 @@
 on:
   push:
     tags:
-      - "ligmars@"
+      - "ligmars@*"
   workflow_dispatch:
 
 jobs:
