@@ -198,6 +198,8 @@ pub struct LGMPHostQueue {
     inner: liblgmp_sys::PLGMPHostQueue,
 }
 
+unsafe impl Send for LGMPHostQueue {}
+
 impl LGMPHostQueue {
     /// Returns true iff there are one or more subscribers listening
     /// on the queue
@@ -304,6 +306,8 @@ impl LGMPHostQueue {
 pub struct LGMPMemoryAllocation {
     inner: Option<liblgmp_sys::PLGMPMemory>,
 }
+
+unsafe impl Send for LGMPMemoryAllocation {}
 
 impl LGMPMemoryAllocation {
     /// Returns a raw mutable pointer to a chunk of allocated memory.

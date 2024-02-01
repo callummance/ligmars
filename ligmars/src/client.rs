@@ -138,6 +138,8 @@ impl Drop for Client {
 pub struct ClientQueueHandle {
     inner: Arc<Mutex<*mut liblgmp_sys::LGMPClientQueue>>,
 }
+unsafe impl Send for ClientQueueHandle {}
+unsafe impl Sync for ClientQueueHandle {}
 
 impl ClientQueueHandle {
     /// Obtains the lock on internal channel pointer  and returns a pointer to it
@@ -354,6 +356,8 @@ pub struct SharedMemoryBlock {
     /// Size of the shared data region in bytes
     pub size: usize,
 }
+
+unsafe impl Send for SharedMemoryBlock {}
 
 impl SharedMemoryBlock {
     /// Returns the contents of the referenced shared memory block as a
